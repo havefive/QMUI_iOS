@@ -1,13 +1,20 @@
+/*****
+ * Tencent is pleased to support the open source community by making QMUI_iOS available.
+ * Copyright (C) 2016-2018 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+ *****/
+
 //
 //  UIFont+QMUI.m
 //  qmui
 //
-//  Created by ZhoonChen on 15/7/20.
-//  Copyright (c) 2015年 QMUI Team. All rights reserved.
+//  Created by QMUI Team on 15/7/20.
 //
 
 #import "UIFont+QMUI.h"
-#import "QMUICommonDefines.h"
+#import "QMUICore.h"
 
 @implementation UIFont (QMUI)
 
@@ -30,8 +37,13 @@
     
     // iOS 10 以上使用常规写法
     UIFont *font = nil;
-    if ([self.class respondsToSelector:@selector(systemFontOfSize:weight:)]) {
+    if (@available(iOS 8.2, *)) {
         font = [UIFont systemFontOfSize:size weight:isLight ? UIFontWeightLight : (isBold ? UIFontWeightBold : UIFontWeightRegular)];
+        
+        // 后面那些都是对斜体的操作，所以如果不需要斜体就直接 return
+        if (!italic) {
+            return font;
+        }
     } else {
         font = [UIFont systemFontOfSize:size];
     }
@@ -51,67 +63,24 @@
     return font;
 }
 
-+ (UIFont *)qmui_dynamicFontWithSize:(CGFloat)pointSize upperLimitSize:(CGFloat)upperLimitSize lowerLimitSize:(CGFloat)lowerLimitSize bold:(BOOL)bold {
-    
-    UIFont *font;
-    UIFontDescriptor *descriptor;
-    NSString *textStyle;
-    
-    // 如果是系统的字号，先映射到系统提供的UIFontTextStyle，否则用UIFontDescriptor来做偏移计算
-    if (pointSize == 17) {
-        textStyle = UIFontTextStyleBody;
-    } else if (pointSize == 15) {
-        textStyle = UIFontTextStyleSubheadline;
-    } else if (pointSize == 13) {
-        textStyle = UIFontTextStyleFootnote;
-    } else if (pointSize == 12) {
-        textStyle = UIFontTextStyleCaption1;
-    } else if (pointSize == 11) {
-        textStyle = UIFontTextStyleCaption2;
-    }
-    
-    if (textStyle)
-    {
-        descriptor = [UIFontDescriptor preferredFontDescriptorWithTextStyle:textStyle];
-        if (bold) {
-            descriptor = [descriptor fontDescriptorWithSymbolicTraits:UIFontDescriptorTraitBold];
-            font = [UIFont fontWithDescriptor:descriptor size:0];
-            if (upperLimitSize > 0 && font.pointSize > upperLimitSize) {
-                font = [UIFont fontWithDescriptor:descriptor size:upperLimitSize];
-            } else if (lowerLimitSize > 0 && font.pointSize < lowerLimitSize) {
-                font = [UIFont fontWithDescriptor:descriptor size:lowerLimitSize];
-            }
-        } else {
-            font = [UIFont preferredFontForTextStyle:textStyle];
-            if (upperLimitSize > 0 && font.pointSize > upperLimitSize) {
-                font = [UIFont systemFontOfSize:upperLimitSize];
-            } else if (lowerLimitSize > 0 && font.pointSize < lowerLimitSize) {
-                font = [UIFont systemFontOfSize:lowerLimitSize];
-            }
-        }
-    } else {
-        textStyle = UIFontTextStyleBody;
-        descriptor = [UIFontDescriptor preferredFontDescriptorWithTextStyle:textStyle];
-        // 对于非系统默认字号的情况，用body类型去做偏移计算
-        font = [UIFont preferredFontForTextStyle:textStyle];// default fontSize = 17
-        CGFloat offsetPointSize = font.pointSize - 17;
-        descriptor = [descriptor fontDescriptorWithSize:pointSize + offsetPointSize];
-        if (bold) {
-            descriptor = [descriptor fontDescriptorWithSymbolicTraits:UIFontDescriptorTraitBold];
-        }
-        font = [UIFont fontWithDescriptor:descriptor size:0];
-        if (upperLimitSize > 0 && font.pointSize > upperLimitSize) {
-            font = [UIFont fontWithDescriptor:descriptor size:upperLimitSize];
-        } else if (lowerLimitSize > 0 && font.pointSize < lowerLimitSize) {
-            font = [UIFont fontWithDescriptor:descriptor size:lowerLimitSize];
-        }
-    }
-    
-    return font;
++ (UIFont *)qmui_dynamicSystemFontOfSize:(CGFloat)size weight:(QMUIFontWeight)weight italic:(BOOL)italic {
+    return [self qmui_dynamicSystemFontOfSize:size upperLimitSize:size + 5 lowerLimitSize:0 weight:weight italic:italic];
 }
 
-+ (UIFont *)qmui_dynamicFontWithSize:(CGFloat)pointSize bold:(BOOL)bold {
-    return [UIFont qmui_dynamicFontWithSize:pointSize upperLimitSize:pointSize + 3 lowerLimitSize:0 bold:bold];
++ (UIFont *)qmui_dynamicSystemFontOfSize:(CGFloat)pointSize
+                          upperLimitSize:(CGFloat)upperLimitSize
+                          lowerLimitSize:(CGFloat)lowerLimitSize
+                                  weight:(QMUIFontWeight)weight
+                                  italic:(BOOL)italic {
+    
+    // 计算出 body 类型比默认的大小要变化了多少，然后在 pointSize 的基础上叠加这个变化
+    UIFont *font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+    CGFloat offsetPointSize = font.pointSize - 17;// default UIFontTextStyleBody fontSize is 17
+    CGFloat finalPointSize = pointSize + offsetPointSize;
+    finalPointSize = MAX(MIN(finalPointSize, upperLimitSize), lowerLimitSize);
+    font = [UIFont qmui_systemFontOfSize:finalPointSize weight:weight italic:NO];
+    
+    return font;
 }
 
 @end

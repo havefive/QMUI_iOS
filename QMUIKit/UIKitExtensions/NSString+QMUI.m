@@ -1,34 +1,43 @@
+/*****
+ * Tencent is pleased to support the open source community by making QMUI_iOS available.
+ * Copyright (C) 2016-2018 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+ *****/
+
 //
 //  NSString+QMUI.m
 //  qmui
 //
-//  Created by ZhoonChen on 15/7/20.
-//  Copyright (c) 2015年 QMUI Team. All rights reserved.
+//  Created by QMUI Team on 15/7/20.
 //
 
 #import "NSString+QMUI.h"
 #import <CommonCrypto/CommonDigest.h>
+#import "NSArray+QMUI.h"
+#import "NSCharacterSet+QMUI.h"
 #import <objc/runtime.h>
-
-#define MD5_CHAR_TO_STRING_16 [NSString stringWithFormat:               \
-@"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",    \
-result[0], result[1], result[2], result[3],                             \
-result[4], result[5], result[6], result[7],                             \
-result[8], result[9], result[10], result[11],                           \
-result[12], result[13], result[14], result[15]]                         \
 
 @implementation NSString (QMUI)
 
-- (BOOL)qmui_includesString:(NSString *)string {
-    if (!string || string.length <= 0) {
-        return NO;
+- (NSArray<NSString *> *)qmui_toArray {
+    if (!self.length) {
+        return nil;
     }
     
-    if ([self respondsToSelector:@selector(containsString:)]) {
-        return [self containsString:string];
+    NSMutableArray<NSString *> *array = [[NSMutableArray alloc] init];
+    for (NSInteger i = 0; i < self.length; i++) {
+        NSString *stringItem = [self substringWithRange:NSMakeRange(i, 1)];
+        [array addObject:stringItem];
     }
-    
-    return [self rangeOfString:string].location != NSNotFound;
+    return [array copy];
+}
+
+- (NSArray<NSString *> *)qmui_toTrimmedArray {
+    return [[self qmui_toArray] qmui_filterWithBlock:^BOOL(NSString *item) {
+        return item.qmui_trim.length > 0;
+    }];
 }
 
 - (NSString *)qmui_trim {
@@ -47,7 +56,16 @@ result[12], result[13], result[14], result[15]]                         \
     const char *cStr = [self UTF8String];
     unsigned char result[CC_MD5_DIGEST_LENGTH];
     CC_MD5(cStr, (CC_LONG)strlen(cStr), result);
-    return MD5_CHAR_TO_STRING_16;
+    return [NSString stringWithFormat:
+            @"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+            result[0], result[1], result[2], result[3],
+            result[4], result[5], result[6], result[7],
+            result[8], result[9], result[10], result[11],
+            result[12], result[13], result[14], result[15]];
+}
+
+- (NSString *)qmui_stringByEncodingUserInputQuery {
+    return [self stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet qmui_URLUserInputQueryAllowedCharacterSet]];
 }
 
 + (NSString *)hexLetterStringWithInteger:(NSInteger)integer {
@@ -80,6 +98,45 @@ result[12], result[13], result[14], result[15]]                         \
     return letter;
 }
 
++ (NSString *)qmui_hexStringWithInteger:(NSInteger)integer {
+    NSString *hexString = @"";
+    NSInteger remainder = 0;
+    for (NSInteger i = 0; i < 9; i++) {
+        remainder = integer % 16;
+        integer = integer / 16;
+        NSString *letter = [self hexLetterStringWithInteger:remainder];
+        hexString = [letter stringByAppendingString:hexString];
+        if (integer == 0) {
+            break;
+        }
+        
+    }
+    return hexString;
+}
+
++ (NSString *)qmui_stringByConcat:(id)firstArgv, ... {
+    if (firstArgv) {
+        NSMutableString *result = [[NSMutableString alloc] initWithFormat:@"%@", firstArgv];
+        
+        va_list argumentList;
+        va_start(argumentList, firstArgv);
+        id argument;
+        while ((argument = va_arg(argumentList, id))) {
+            [result appendFormat:@"%@", argument];
+        }
+        va_end(argumentList);
+        
+        return [result copy];
+    }
+    return nil;
+}
+
++ (NSString *)qmui_timeStringWithMinsAndSecsFromSecs:(double)seconds {
+    NSUInteger min = floor(seconds / 60);
+    NSUInteger sec = floor(seconds - min * 60);
+    return [NSString stringWithFormat:@"%02ld:%02ld", (long)min, (long)sec];
+}
+
 - (NSString *)qmui_removeMagicalChar {
     if (self.length == 0) {
         return self;
@@ -92,20 +149,21 @@ result[12], result[13], result[14], result[15]]                         \
 }
 
 - (NSUInteger)qmui_lengthWhenCountingNonASCIICharacterAsTwo {
-    NSUInteger characterLength = 0;
-    char *p = (char *)[self cStringUsingEncoding:NSUnicodeStringEncoding];
-    for (NSInteger i = 0, l = [self lengthOfBytesUsingEncoding:NSUnicodeStringEncoding]; i < l; i++) {
-        if (*p) {
-            characterLength++;
+    NSUInteger length = 0;
+    for (NSUInteger i = 0, l = self.length; i < l; i++) {
+        unichar character = [self characterAtIndex:i];
+        if (isascii(character)) {
+            length += 1;
+        } else {
+            length += 2;
         }
-        p++;
     }
-    return characterLength;
+    return length;
 }
 
 - (NSUInteger)transformIndexToDefaultModeWithIndex:(NSUInteger)index {
     CGFloat strlength = 0.f;
-    NSInteger i = 0;
+    NSUInteger i = 0;
     for (i = 0; i < self.length; i++) {
         unichar character = [self characterAtIndex:i];
         if (isascii(character)) {
@@ -121,7 +179,7 @@ result[12], result[13], result[14], result[15]]                         \
 - (NSRange)transformRangeToDefaultModeWithRange:(NSRange)range {
     CGFloat strlength = 0.f;
     NSRange resultRange = NSMakeRange(NSNotFound, 0);
-    NSInteger i = 0;
+    NSUInteger i = 0;
     for (i = 0; i < self.length; i++) {
         unichar character = [self characterAtIndex:i];
         if (isascii(character)) {
@@ -196,20 +254,21 @@ result[12], result[13], result[14], result[15]]                         \
     return [self qmui_stringByRemoveCharacterAtIndex:self.length - 1];
 }
 
-+ (NSString *)qmui_hexStringWithInteger:(NSInteger)integer {
-    NSString *hexString = @"";
-    NSInteger remainder = 0;
-    for (NSInteger i = 0; i < 9; i++) {
-        remainder = integer % 16;
-        integer = integer / 16;
-        NSString *letter = [self hexLetterStringWithInteger:remainder];
-        hexString = [letter stringByAppendingString:hexString];
-        if (integer == 0) {
-            break;
-        }  
-        
+- (NSString *)qmui_stringMatchedByPattern:(NSString *)pattern {
+    NSRange range = [self rangeOfString:pattern options:NSRegularExpressionSearch|NSCaseInsensitiveSearch];
+    if (range.location != NSNotFound) {
+        return [self substringWithRange:range];
     }
-    return hexString;
+    return nil;
+}
+
+- (NSString *)qmui_stringByReplacingPattern:(NSString *)pattern withString:(NSString *)replacement {
+    NSError *error = nil;
+    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:pattern options:NSRegularExpressionCaseInsensitive error:&error];
+    if (error) {
+        return self;
+    }
+    return [regex stringByReplacingMatchesInString:self options:NSMatchingReportCompletion range:NSMakeRange(0, self.length) withTemplate:replacement];
 }
 
 @end

@@ -1,12 +1,21 @@
+/*****
+ * Tencent is pleased to support the open source community by making QMUI_iOS available.
+ * Copyright (C) 2016-2018 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+ *****/
+
 //
 //  UIColor+QMUI.h
 //  qmui
 //
-//  Created by ZhoonChen on 15/7/20.
-//  Copyright (c) 2015年 QMUI Team. All rights reserved.
+//  Created by QMUI Team on 15/7/20.
 //
 
 #import <UIKit/UIKit.h>
+
+#define UIColorMakeWithHex(hex) [UIColor qmui_colorWithHexString:hex]
 
 @interface UIColor (QMUI)
 
@@ -21,12 +30,12 @@
  *
  * @return UIColor对象
  */
-+ (UIColor *)qmui_colorWithHexString:(NSString *)hexString;
++ (nullable UIColor *)qmui_colorWithHexString:(nullable NSString *)hexString;
 
 /**
  *  将当前色值转换为hex字符串，通道排序是AARRGGBB（与Android保持一致）
  */
-- (NSString *)qmui_hexString;
+- (nullable NSString *)qmui_hexString;
 
 /**
  *  获取当前UIColor对象里的红色色值
@@ -96,6 +105,33 @@
 - (UIColor *)qmui_transitionToColor:(UIColor *)toColor progress:(CGFloat)progress;
 
 /**
+ *  判断当前颜色是否为深色，可用于根据不同色调动态设置不同文字颜色的场景。
+ *
+ *  @link http://stackoverflow.com/questions/19456288/text-color-based-on-background-image @/link
+ *
+ *  @return 若为深色则返回“YES”，浅色则返回“NO”
+ */
+- (BOOL)qmui_colorIsDark;
+
+/**
+ *  当前颜色的反色
+ *
+ *  @link http://stackoverflow.com/questions/5893261/how-to-get-inverse-color-from-uicolor @/link
+ */
+- (UIColor *)qmui_inverseColor;
+
+/**
+ *  判断当前颜色是否等于系统默认的 tintColor 颜色。
+ *  背景：如果将一个 UIView.tintColor 设置为 nil，表示这个 view 的 tintColor 希望跟随 superview.tintColor 变化而变化，所以设置完再获取 view.tintColor，得到的并非 nil，而是 superview.tintColor 的值，而如果整棵 view 层级树里的 view 都没有设置自己的 tintColor，则会返回系统默认的 tintColor（也即 [UIColor qmui_systemTintColor]），所以才提供这个方法用于代替判断 tintColor == nil 的作用。
+ */
+- (BOOL)qmui_isSystemTintColor;
+
+/**
+ *  获取当前系统的默认 tintColor 色值
+ */
++ (UIColor *)qmui_systemTintColor;
+
+/**
  *  计算两个颜色叠加之后的最终色（注意区分前景色后景色的顺序）<br/>
  *  @link http://stackoverflow.com/questions/10781953/determine-rgba-colour-received-by-combining-two-colours @/link
  */
@@ -113,21 +149,5 @@
  *  产生一个随机色，大部分情况下用于测试
  */
 + (UIColor *)qmui_randomColor;
-
-/**
- *  判断当前颜色是否为深色，可用于根据不同色调动态设置不同文字颜色的场景。
- *
- *  @link http://stackoverflow.com/questions/19456288/text-color-based-on-background-image @/link
- *
- *  @return 若为深色则返回“YES”，浅色则返回“NO”
- */
-- (BOOL)qmui_colorIsDark;
-
-/**
- *  当前颜色的反色
- *
- *  @link http://stackoverflow.com/questions/5893261/how-to-get-inverse-color-from-uicolor @/link
- */
-- (UIColor *)qmui_inverseColor;
 
 @end
